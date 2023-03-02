@@ -147,35 +147,7 @@ def silhouette_score_index(df):
     ss = silhouette_score(df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']], df['predict'])
     return(ss)
 
-def feature_comon_group(df):
-        # plot a Stacked Bar Chart using matplotlib
-    df.plot(
-      x = 'type', 
-      kind = 'barh', 
-      stacked = True, 
-      title = 'Percentage Stacked Bar Graph', 
-      mark_right = True)
-      
-    df_total = df["Studied"] + df["Slept"] + df["Other"]
-    df_rel = df[df.columns[1:]].div(df_total, 0)*100
-      
-    for n in df_rel:
-        for i, (cs, ab, pc) in enumerate(zip(df.iloc[:, 1:].cumsum(1)[n], 
-                                             df[n], df_rel[n])):
-            plt.text(cs - ab / 2, i, str(np.round(pc, 1)) + '%', 
-                     va = 'center', ha = 'center')
-    fig, ax = plt.subplots()
-    bottom = np.zeros(7)
-    
-    for boolean, weight_count in weight_counts.items():
-        p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom)
-        bottom += weight_count
-    
-    ax.set_title("Number of penguins with above average body mass")
-    ax.legend(loc="upper right")
-    
-    plt.show()
-    
+   
 
 def kmeans_prediction(df):
     # Definiamo il numero K di cluster presenti nei dati:

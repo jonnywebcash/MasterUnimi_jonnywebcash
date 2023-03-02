@@ -48,3 +48,9 @@ ss_kmeans=sf.silhouette_score_index(zoo_data)
 
 # Scatter plot
 scatter_df=sf.scatter_plot_result(zoo_data[['animal name','type','predict']])
+
+     
+      
+df=sf.replace_predict_with_major(zoo_data)
+sub_df=df[df["predict"]==1]
+a=df.groupby(['predict','predator'],group_keys=False)['predator'].count()

@@ -1,3 +1,4 @@
+import sklearn
 from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import rand_score
@@ -8,33 +9,42 @@ import numpy as np
 import pandas as pd
 
 plt.close('all') 
+
+def replace_predict_with_major(df):
+    # Valutazione predict
+    #predict_major={}
+    # for result_predict in (df['predict'].unique()):
+    #     sub_df=df[df["predict"]==result_predict]
+    #     major_species=sub_df['type'].value_counts().idxmax()
+    #     predict_major[int(result_predict)]=major_species
+    predict_major=df['type'].groupby(df['predict']).value_counts().groupby(level=[0], group_keys=False).head(1).to_frame('counts').reset_index()
+    predict_major=df.set_index('predict').to_dict()['type']
+    # for chiave in predict_major.keys():
+    #     df['predict'] = df['predict'].replace([int(chiave)], species_dict[predict_major[chiave]])
+    df['predict']=df['predict'].map(predict_major)
+    return(df)
+
  
 def replace_species(df,species_dict):
-    # Valutazione predict
-    predict_major={}
-    for result_predict in (df['predict'].unique()):
-        sub_df=df[df["predict"]==result_predict]
-        major_species=sub_df['type'].value_counts().idxmax()
-        predict_major[str(result_predict)]=major_species
-
-    for chiave in predict_major.keys():
-        df['predict'] = df['predict'].replace([int(chiave)], species_dict[predict_major[chiave]])
-
-    for chiave in species_dict.keys():
-        df['type'] = df['type'].replace([int(chiave)], species_dict[chiave])
+    df=replace_predict_with_major(df)
+    df['predict']=df['predict'].map(species_dict)  
+    df['type']=df['type'].map(species_dict)    
+    # for chiave in species_dict.keys():
+    #     df['type'] = df['type'].replace([int(chiave)], species_dict[chiave])
         #sub_df_frequency = sub_df['type'].value_counts()
     return(df)
 
 def scatter_plot_result(df):
-    df_tmp = pd.DataFrame(columns = list(df.columns.values))
-    # Valutazione predict
-    for result_predict in (df['predict'].unique()):
-        sub_df=df[df["predict"]==result_predict]
-        major_species=sub_df['type'].value_counts().idxmax()
-        sub_df['predict'] = sub_df['predict'].replace(result_predict, major_species)
-        df_tmp=pd.concat([df_tmp, sub_df], axis=0)
+    # df_tmp = pd.DataFrame(columns = list(df.columns.values))
+    # # Valutazione predict
+    # for result_predict in (df['predict'].unique()):
+    #     sub_df=df[df["predict"]==result_predict]
+    #     major_species=sub_df['type'].value_counts().idxmax()
+    #     sub_df['predict'] = sub_df['predict'].replace(result_predict, major_species)
+    #     df_tmp=pd.concat([df_tmp, sub_df], axis=0)
 
-    df=df_tmp
+    # df=df_tmp
+    df=replace_predict_with_major(df)
     df['type'] = df['type'].apply(lambda x: x + np.random.randint(-40,40)/100)
     df['predict'] = df['predict'].apply(lambda x: x + np.random.randint(-40,40)/100)
     # Crea un grafico a dispersione dei dati utilizzando le colonne Età e Voto
@@ -65,15 +75,20 @@ def scatter_plot_result(df):
     return(df)
 
 def similarity_index(df):
-    df_tmp = pd.DataFrame(columns = list(df.columns.values)+['predict label'])
-    # Valutazione predict
-    for result_predict in (df['predict'].unique()):
-        sub_df=df[df["predict"]==result_predict]
-        major_species=sub_df['type'].value_counts().idxmax()
-        sub_df['predict label'] =major_species
-        df_tmp=pd.concat([df_tmp, sub_df], axis=0)
+    # df_tmp = pd.DataFrame(columns = list(df.columns.values)+['predict label'])
+    # # Valutazione predict
+    # for result_predict in (df['predict'].unique()):
+    #     sub_df=df[df["predict"]==result_predict]
+    #     major_species=sub_df['type'].value_counts().idxmax()
+    #     sub_df['predict label'] =major_species
+    #     df_tmp=pd.concat([df_tmp, sub_df], axis=0)
 
-    df=df_tmp
+    # df=df_tmp
+    predict_major=df['type'].groupby(df['predict']).value_counts().groupby(level=[0], group_keys=False).head(1).to_frame('counts').reset_index()
+    predict_major=df.set_index('predict').to_dict()['type']
+    df['predict label']=df['predict'].map(predict_major)
+
+    df=replace_predict_with_major(df)
     similarity_dict={}
     for real_type in (df['type'].unique()):
         sub_df=df[df["type"]==real_type]
@@ -135,7 +150,7 @@ def silhouette_score_index(df):
 def feature_comon_group(df):
         # plot a Stacked Bar Chart using matplotlib
     df.plot(
-      x = 'Name', 
+      x = 'type', 
       kind = 'barh', 
       stacked = True, 
       title = 'Percentage Stacked Bar Graph', 
@@ -149,7 +164,17 @@ def feature_comon_group(df):
                                              df[n], df_rel[n])):
             plt.text(cs - ab / 2, i, str(np.round(pc, 1)) + '%', 
                      va = 'center', ha = 'center')
-            
+    fig, ax = plt.subplots()
+    bottom = np.zeros(7)
+    
+    for boolean, weight_count in weight_counts.items():
+        p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom)
+        bottom += weight_count
+    
+    ax.set_title("Number of penguins with above average body mass")
+    ax.legend(loc="upper right")
+    
+    plt.show()
     
 
 def kmeans_prediction(df):

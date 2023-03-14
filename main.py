@@ -24,6 +24,8 @@ zoo_data.head(20)
 # Labelize result
 result_kmeans=sf.replace_species(zoo_data[['animal name','type','predict']],species_dict)
 
+# Classification performance
+sf.classification_percentage_performance(zoo_data,species_dict)
 # Similarity index
 similarity_kmeans=sf.similarity_index(zoo_data[['animal name','type','predict']])
 # Dissimilarità index
@@ -47,10 +49,8 @@ ri_kmeans=sf.rand_index(zoo_data[['animal name','type','predict']])
 ss_kmeans=sf.silhouette_score_index(zoo_data)
 
 # Scatter plot
-scatter_df=sf.scatter_plot_result(zoo_data[['animal name','type','predict']])
-
-     
+scatter_df=sf.scatter_plot_result(zoo_data[['animal name','type','predict']])     
       
-df=sf.replace_predict_with_major(zoo_data)
-sub_df=df[df["predict"]==1]
-a=df.groupby(['predict','predator'],group_keys=False)['predator'].count()
+# bar plot of predicted feature class composition
+# sf.barplot_class_feature_percentage(zoo_data,species_dict)
+sf.barplot_class_feature_comaprison(zoo_data,species_dict)

@@ -7,6 +7,7 @@ from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 plt.close('all') 
 
@@ -73,6 +74,76 @@ def scatter_plot_result(df):
     plt.grid()
     plt.show()
     return(df)
+
+def barplot_class_feature_percentage(df,species_dict):
+    feature_name=['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize','type']
+    for result_predict in (df['predict'].unique()):
+        
+        sub_df=df[df["predict"]==result_predict]    
+        cnt=1
+        plt.figure()
+        for feature in feature_name:
+            # get colum value distribution
+            a = (sub_df[feature].value_counts(normalize=True)
+                        .mul(100)
+                        .rename_axis(feature)
+                        .reset_index(name='percentage'))
+            # creating the bar plot
+            
+            plt.subplot(3, 6,cnt)
+            #plt.title(feature)
+            plt.bar(a[feature].values.tolist(), a['percentage'], align='center', color ='b')
+         
+            plt.xlabel(feature)
+            plt.ylabel("Percentage [%]")    
+            #ax[cnt].plt.show()
+            cnt=cnt+1
+        # Show the plots
+        sub_df['predict']=sub_df['predict'].map(species_dict) 
+        plt.suptitle("predict:"+sub_df['predict'].unique())
+        plt.show()
+
+def barplot_class_feature_comaprison(df,species_dict):
+   df=replace_predict_with_major(df)
+   feature_name=['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed']
+   cnt=0
+   sns.set() 
+   fig, axes = plt.subplots(2, 4, sharey=True)
+   fig.suptitle('Class features composition')
+   for feature in feature_name:
+       sub_df=df.groupby(["predict", feature])[feature].count().reset_index(name="count")
+       sub_df['perc'] = sub_df['count'].groupby(sub_df['predict']).transform(lambda x: x/x.sum())
+       sub_df['predict']=sub_df['predict'].map(species_dict) 
+       sns.barplot(x ="predict", y = 'perc', data = sub_df, hue = feature,ax=axes[cnt//4,cnt%4])
+       axes[cnt//4,cnt%4].set_xticklabels(axes[cnt//4,cnt%4].get_xticklabels(), rotation=45)
+       # axes[cnt//4,cnt%4].set_title(feature)       
+       cnt=cnt+1
+    
+   feature_name=['backbone','breathes','venomous','fins','legs','tail','domestic','catsize','type']
+   cnt=0
+   fig, axes = plt.subplots(2, 4, sharey=True)
+   fig.suptitle('Class features composition')
+   for feature in feature_name:
+        sub_df=df.groupby(["predict", feature])[feature].count().reset_index(name="count")
+        sub_df['perc'] = sub_df['count'].groupby(sub_df['predict']).transform(lambda x: x/x.sum())
+        sub_df['predict']=sub_df['predict'].map(species_dict) 
+        sns.barplot(x ="predict", y = 'perc', data = sub_df, hue = feature,ax=axes[cnt//4,cnt%4])
+        axes[cnt//4,cnt%4].set_xticklabels(axes[cnt//4,cnt%4].get_xticklabels(), rotation=45)        
+        # axes[cnt//4,cnt%4].set_title(feature)        
+        cnt=cnt+1
+
+def classification_percentage_performance(df,species_dict):
+    df=replace_predict_with_major(df)    
+    sub_df=df.groupby(["type", "predict"])["predict"].count().reset_index(name="count")
+    sub_df['perc'] = sub_df['count'].groupby(sub_df['type']).transform(lambda x: x/x.sum())
+    sub_df['predict']=sub_df['predict'].map(species_dict)
+    sub_df['type']=sub_df['type'].map(species_dict)
+    sns.set() 
+    fig, axes = plt.subplots(2, 1)
+    fig.suptitle('Class features composition')
+    sns.barplot(x ="type", y = 'perc', data = sub_df, hue = "predict",ax=axes[0])    
+    sns.barplot(x ="type", y = 'count', data = sub_df, hue = "predict",ax=axes[1])
+    
 
 def similarity_index(df):
     # df_tmp = pd.DataFrame(columns = list(df.columns.values)+['predict label'])

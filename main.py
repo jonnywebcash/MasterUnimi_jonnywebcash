@@ -19,48 +19,36 @@ sf.feature_vs_class_heatmap(zoo_data,species_dict)
 sf.class_distributuion_barplot(zoo_data,species_dict)
 sf.barplot_class_feature_distribution(zoo_data,species_dict)
 
+# create models index dataframe
+model_comparison = pd.DataFrame(columns=['model', 'ri','ari','MI','NMI','AMI','HS','CS','V','siluette'])
 
 # k-means algorithm
-kmeans=sf.kmeans_prediction(zoo_data,7)
-# Mostra le prime 20 righe del dataframe con la colonna Cluster aggiunta
-kmeans.head(20)
+for k in range(4,10,1):
+    kmeans=sf.kmeans_prediction(zoo_data.copy(),k)
+    result_kmeans=kmeans[['animal name','model_name','type','predict_label','predict']].copy()
+    result_kmeans=sf.replace_species(result_kmeans,species_dict)
+    scatter_df=sf.scatter_plot_result(kmeans[['animal name','model_name','type','predict_label','predict']].copy())
+    model_comparison=sf.model_performance_evaluation(kmeans,result_kmeans,model_comparison)
 
-# DBSCAN
-dbscan=sf.dbscan_prediction(zoo_data)
+
+## DBSCAN
+for n in range(1,10,2):
+    dbscan=sf.dbscan_prediction(zoo_data.copy(),0.75,n)
+    result_dbscan=dbscan[['animal name','model_name','type','predict_label','predict']].copy()
+    result_dbscan=sf.replace_species(result_dbscan,species_dict)
+    # Scatter plot
+    scatter_df=sf.scatter_plot_result(dbscan[['animal name','model_name','type','predict_label','predict']].copy())
+    model_comparison=sf.model_performance_evaluation(dbscan,result_dbscan,model_comparison)
 
 
-## Valutazione cluster
-# Labelize result
-result_kmeans=zoo_data[['animal name','type','predict']].copy()
-result_kmeans=sf.replace_species(result_kmeans,species_dict)
 
 # Classification performance
+# Percentage_true_cluster: indice che valuta per m
 sf.classification_percentage_performance(result_kmeans,species_dict)
- # Similarity index
-similarity_kmeans=sf.similarity_index(result_kmeans)
-# Dissimilarità index
-dissimilarity_kmeans=sf.dissimilarity_index(result_kmeans)
+sf.barplot_class_feature_comparison(dbscan,species_dict,1)
 
-# Adjusted Rand Index
-#The adjusted rand index is an evaluation metric that is used to measure the similarity between two clustering by considering all the pairs of the n_samples and calculating the counting pairs of the assigned in the same or different clusters in the actual and predicted clustering.  
-#The adjusted rand index score is defined as:
-#ARI = (RI - Expected_RI) / (max(RI) - Expected_RI)
-# A score above 0.7 is considered to be a good match. 
-ari_kmeans=sf.adjusted_rand_index(result_kmeans)
 
-#Rand Index
-#The Rand index is different from the adjusted rand index. Rand index does find the similarity between two clustering by considering all the pairs of the n_sample but it ranges from 0 to 1. whereas ARI ranges from -1 to 1. 
-#The rand index is defined as:
-# RI = (number of agreeing pairs) / (number of pairs)
-ri_kmeans=sf.rand_index(result_kmeans)
+##
+# https://towardsdatascience.com/7-evaluation-metrics-for-clustering-algorithms-bdc537ff54d2
+##
 
-# Silhouette Score aka Silhouette Coefficient
-# Silhouette score aka Silhouette Coefficient is an evaluation metric that results in the range of -1 to 1. A score near 1 signifies the best importance that the data point is very compact within the cluster to which it belongs and far away from the other clusters. The score near -1 signifies the least or worst importance of the data point. A score near 0 signifies overlapping clusters. 
-ss_kmeans=sf.silhouette_score_index(kmeans)
-
-# Scatter plot
-scatter_df=sf.scatter_plot_result(kmeans[['animal name','type','predict']])     
-      
-# bar plot of predicted feature class composition
-# sf.barplot_class_feature_percentage(zoo_data,species_dict)
-sf.barplot_class_feature_comaprison(kmeans,species_dict)

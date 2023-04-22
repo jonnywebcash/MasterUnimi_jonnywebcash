@@ -1,11 +1,24 @@
+
 import sklearn
-from sklearn.cluster import DBSCAN
-from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import rand_score
 from sklearn.metrics import silhouette_score
 from sklearn.metrics import (mutual_info_score, normalized_mutual_info_score,adjusted_mutual_info_score)
 from sklearn.metrics import (homogeneity_score,completeness_score,v_measure_score)
+from sklearn.metrics import confusion_matrix
+
+from sklearn.cluster import AffinityPropagation
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import Birch
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import OPTICS
+from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.cluster import MeanShift
+from sklearn.cluster import SpectralClustering
+from sklearn.mixture import GaussianMixture
+
+
 
 import matplotlib.pyplot as plt
 
@@ -61,6 +74,88 @@ def feature_vs_class_heatmap(df,species_dict):
     # Show the plots
     plt.show()
 
+# Generazione della heatmap valutando la correlazione delle singole features con le singole specie
+def feature_vsclustered_class(df,df2,species_dict):
+    # Original dataset
+    df_tmp=df.copy()
+    df_tmp['type']=df_tmp['type'].map(species_dict)    
+    # One-hot encoding
+    df_tmp=pd.get_dummies(df_tmp,columns=["type"])
+    # Creazione matrice correlazione
+    corr_matrix = df_tmp.corr().abs()
+    # Selezione del tringolo superiore della matrice di correlazione
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    # Estraiamo tutte le combinazioni di feature e le filtriamo per avere solo le correlazioni tra i type e le feature
+    s = upper.unstack()
+    added_dummy_cols = [item for item in list(df_tmp.columns.values) if (item not in(df.columns.values))]
+    so=s[s.index.isin(added_dummy_cols, level=0)]
+    so=so[~so.index.isin(added_dummy_cols, level=1)]
+    so = so.sort_values(kind="quicksort",ascending=False, na_position='last')
+    so.columns =['corr']
+    so.index=so.index.set_names(['type','feature'])
+    so=so.reset_index()
+    so.columns=['type','feature','corr']
+    
+    ## Mapped dataset
+    df_tmp2=df2[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    df_tmp2['predict_label']=df2['predict_label'].map(species_dict)    
+    df_tmp2['cluster_']=df_tmp2['predict_label']+'-'+df2['predict'].astype(str)
+    # One-hot encoding
+    df_tmp2=pd.get_dummies(df_tmp2,columns=["cluster_"])
+    # Creazione matrice correlazione
+    corr_matrix2 = df_tmp2.corr().abs()    
+    # Selezione del tringolo superiore della matrice di correlazione
+    upper2 = corr_matrix2.where(np.triu(np.ones(corr_matrix2.shape), k=1).astype(bool))    
+    # Estraiamo tutte le combinazioni di feature e le filtriamo per avere solo le correlazioni tra i type e le feature
+    s2 = upper2.unstack()
+    added_dummy_cols2 = [item for item in list(df_tmp2.columns.values) if (item not in(df2.columns.values))]
+    so2=s2[s2.index.isin(added_dummy_cols2, level=0)]
+    so2=so2[~so2.index.isin(added_dummy_cols2, level=1)]
+    so2 = so2.sort_values(kind="quicksort",ascending=False, na_position='last')
+    so2.columns =['corr']
+    so2.index=so2.index.set_names(['cluster','feature'])
+    so2=so2.reset_index()
+    so2.columns=['cluster','feature','corr']
+    
+    cmap =plt.colormaps['jet']
+    cnt=1;
+    plt.figure()
+    for cluster in added_dummy_cols2:
+        if cnt>2:
+            plt.show()
+            cnt=1;
+            plt.figure()
+            
+        sub_df2=so2[so2["cluster"]==cluster]
+        sub_df2=sub_df2.sort_values('feature')
+        
+        label_majority=cluster.split('-')
+        label_majority=label_majority[0].replace("cluster__", "")
+        sub_df=so[so["type"]=='type_'+label_majority]
+        sub_df=sub_df.sort_values('feature')
+        
+        plt.subplot(2,2,cnt)
+        plt.title(cluster)        
+        plt.bar(sub_df2['feature'], sub_df2['corr'], align='center',color=cmap(sub_df2['corr']),width=0.4)     
+        plt.xticks(rotation = 60)
+        plt.ylabel("Cluster feature corr")  
+        plt.ylim(ymin = 0,ymax = 1)
+        plt.grid(True)
+ 
+        plt.subplot(2, 2,cnt+2)
+        plt.title(label_majority)        
+        plt.bar(sub_df['feature'], sub_df['corr'], align='center',color=cmap(sub_df['corr']),width=0.4)     
+        #plt.xlabel(sub_df['feature'].values.tolist())
+        plt.xticks(rotation = 60)
+        plt.ylabel("Majority Specie feature corr")    
+        plt.ylim(ymin = 0,ymax = 1)
+        plt.grid(True)
+        
+        cnt=cnt+1
+    plt.show()
+       
+       
+
     
 
 
@@ -110,7 +205,8 @@ def barplot_class_feature_distribution(df,species_dict):
 def majority_voting_label(df):
     
     predict_major=df['type'].groupby(df['predict']).value_counts().groupby(level=[0], group_keys=False).head(1).to_frame('counts').reset_index()
-    predict_major=df.set_index('predict').to_dict()['type']
+    predict_major=pd.Series(predict_major.type.values,index=predict_major.predict).to_dict()
+    #predict_major=df.set_index('predict').to_dict()['type']
     df['predict_label']=df['predict'].map(predict_major)
     return(df)
 
@@ -135,6 +231,15 @@ def replace_species(df,species_dict):
     df['type']=df['type'].map(species_dict)    
     return(df)
 
+def confusion_matrix_plot(df):
+    cm = confusion_matrix(df['type'],df['predict_label'])
+    sns.set() 
+    plt.figure()
+    sns.heatmap(cm, annot=True, fmt="d")
+    plt.xlabel("Predicted Class by majority voting")
+    plt.ylabel("True Class")
+    plt.title('Confusion matrix:'+df['model_name'][0])
+    plt.show()
 
 def scatter_plot_result(df):
     df['type'] = df['type'].apply(lambda x: x + np.random.randint(-40,40)/100)
@@ -171,6 +276,52 @@ def scatter_plot_result(df):
     plt.show()
     return(df)
 
+def scatter_plot_all(df_all,colum_all):
+    cnt=1;
+    fig = plt.figure()
+        
+            
+    for df_n in df_all:
+        df=df_n[colum_all].copy()
+        df['type'] = df['type'].apply(lambda x: x + np.random.randint(-40,40)/100)
+        df['predict_label'] = df['predict_label'].apply(lambda x: x + np.random.randint(-40,40)/100)
+        groups = df.groupby('predict')
+        if cnt>6:
+            plt.show()
+            cnt=1;
+            fig = plt.figure()
+    
+        plt.subplot(2,3,cnt)
+        ax = fig.gca()
+        circle0 = plt.Circle((0,0), 0.5,  fill=False)
+        circle1 = plt.Circle((1,1), 0.5,  fill=False)
+        circle2 = plt.Circle((2,2), 0.5,  fill=False)
+        circle3 = plt.Circle((3,3), 0.5,  fill=False)
+        circle4 = plt.Circle((4,4), 0.5,  fill=False)
+        circle5 = plt.Circle((5,5), 0.5,  fill=False)
+        circle6 = plt.Circle((6,6), 0.5,  fill=False)
+    
+        ax.set_xticks(np.arange(-1, 7, 1))
+        ax.set_yticks(np.arange(-1, 7, 1))
+        #plt.scatter(df['type'], df['predict_label'], c=df['predict'], cmap='viridis')
+        for cluster, group in groups:
+            plt.plot(group.type, group.predict_label, marker='o', linestyle='', markersize=8, label=cluster)
+        
+        plt.xlabel('type')
+        plt.ylabel('majority voting label')
+        ax.add_patch(circle0)
+        ax.add_patch(circle1)
+        ax.add_patch(circle2)
+        ax.add_patch(circle3)
+        ax.add_patch(circle4)
+        ax.add_patch(circle5)
+        ax.add_patch(circle6)
+        plt.grid()
+        plt.title(df['model_name'][0])
+        plt.legend()
+        cnt=cnt+1
+    plt.show()
+    return(df)
 
 
 def barplot_class_feature_distribution(df,species_dict):
@@ -349,8 +500,7 @@ def adjusted_rand_index(df):
 def mutual_information_index(df):
     MI = mutual_info_score(df['type'], df['predict'])
     NMI = normalized_mutual_info_score(df['type'], df['predict'])
-    AMI = adjusted_mutual_info_score(df['type'], df['predict'])
-    return(MI,NMI,AMI)
+    return(MI,NMI)
 
 def v_measure_index(df):
     HS = homogeneity_score(df['type'], df['predict'])
@@ -360,6 +510,7 @@ def v_measure_index(df):
 
 def silhouette_score_index(df):
     ss = silhouette_score(df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']], df['predict'])
+    ss=(ss+1)/2
     return(ss)
 
 def model_performance_evaluation(df_full,df,model_comparison):
@@ -380,12 +531,12 @@ def model_performance_evaluation(df_full,df,model_comparison):
     # di conteggio delle stesse o diversi cluster nel raggruppamento effettivo e previsto.
     #ARI = (RI - Expected_RI) / (max(RI) - Expected_RI)
     # A score above 0.7 is considered to be a good match. 
-    ari_score=adjusted_rand_index(df)
+    # ari_score=adjusted_rand_index(df)
     
-    # Mutual Information (MI, NMI, AMI)
+    # Mutual Information (MI, NMI)
     # Le informazioni reciproche (MI, NMI, AMI) misurano l'accordo tra le assegnazioni del cluster.
     # Un punteggio più alto indica una somiglianza maggiore.
-    MI_score,NMI_score,AMI_score=mutual_information_index(df)
+    MI_score,NMI_score=mutual_information_index(df)
     
     # V-measure
     # V-Measure misura la correttezza delle assegnazioni del cluster usando l'analisi dell'entropia condizionale.
@@ -398,28 +549,40 @@ def model_performance_evaluation(df_full,df,model_comparison):
     # Silhouette score aka Silhouette Coefficient is an evaluation metric that results in the range of -1 to 1. A score near 1 signifies the best importance that the data point is very compact within the cluster to which it belongs and far away from the other clusters. The score near -1 signifies the least or worst importance of the data point. A score near 0 signifies overlapping clusters. 
     ss_score=silhouette_score_index(df_full)
     
-    new_row=[[df['model_name'][0],ri_score,ari_score,MI_score,NMI_score,AMI_score,HS_score,CS_score,V_score,ss_score]]
+    new_row=[[df['model_type'][0],df['model_name'][0],ri_score,MI_score,NMI_score,HS_score,CS_score,V_score,ss_score]]
     
     model_comparison= model_comparison.append(pd.DataFrame(new_row, columns=model_comparison.columns))
     return(model_comparison)
 
-
-
-
-   
-
-def kmeans_prediction(df, k):
-    # Definiamo il numero K di cluster presenti nei dati:
-    kmeans = KMeans(n_clusters=k)
-    # Addestra il modello di K-means sul dataset
+def AffinityM_prediction(df, k):
+    affinityM = AffinityPropagation(damping=k)
     features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
-    kmeans.fit(features)
-    
-    # Assegna le etichette dei cluster a ogni oggetto del dataset
-    df['predict'] = kmeans.predict(features)
-    df['model_name'] = 'kmeans_'+str(k)
+    affinityM.fit(features)
+    df['predict'] = affinityM.predict(features)
+    df['model_type'] = 'AffinityPropagation'
+    df['model_name'] = 'AffinityPropagation_'+str(k)
     majority_voting_label(df)
     return(df)
+
+def agglomerativeClustering_prediction(df, k):
+    agglomerativeC = AgglomerativeClustering(n_clusters=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    df['predict'] = agglomerativeC.fit_predict(features)
+    df['model_type'] = 'AgglomerativeClustering'
+    df['model_name'] = 'AgglomerativeClustering_'+str(k)
+    majority_voting_label(df)
+    return(df)
+   
+def birch_prediction(df, k,th):
+    birchM = Birch(threshold=th, n_clusters=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    birchM.fit(features)
+    df['predict'] = birchM.predict(features)
+    df['model_type'] = 'birch'
+    df['model_name'] = 'birchMlustering_k:_'+str(k)+'_th_'+str(th)
+    majority_voting_label(df)
+    return(df)
+
 
 def dbscan_prediction(df,eps_v,min_sam):
     dbscan_model = DBSCAN( eps = eps_v, min_samples = min_sam)
@@ -427,7 +590,84 @@ def dbscan_prediction(df,eps_v,min_sam):
     dbscan_model.fit(features)    
     # Assegna le etichette dei cluster a ogni oggetto del dataset
     df['predict'] = dbscan_model.labels_
+    df['model_type'] = 'dbscan'
     df['model_name'] = 'dbscan_eps_'+str(eps_v)+'_min_samples_'+str(min_sam)
     majority_voting_label(df)
     return(df)
 
+def optics_m_prediction(df,eps_v,min_sam):
+    optics_m_model = OPTICS( eps = eps_v, min_samples = min_sam)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = optics_m_model.fit_predict(features)    
+    df['model_type'] = 'optics'
+    df['model_name'] = 'optics_m_eps_'+str(eps_v)+'_min_samples_'+str(min_sam)
+    majority_voting_label(df)
+    return(df)
+
+def kmeans_prediction(df, k):
+    kmeans = KMeans(n_clusters=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    kmeans.fit(features)
+    
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = kmeans.predict(features)
+    df['model_type'] = 'kmeans'
+    df['model_name'] = 'kmeans_'+str(k)
+    majority_voting_label(df)
+    return(df)
+
+def mb_kmeans_prediction(df, k):
+    mb_kmeans = MiniBatchKMeans(n_clusters=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    mb_kmeans.fit(features)
+    
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = mb_kmeans.predict(features)
+    df['model_type'] = 'mb_kmeans'
+    df['model_name'] = 'mb_kmeans_'+str(k)
+    majority_voting_label(df)
+    return(df)
+
+
+def mean_shift_prediction(df):
+    mean_shift = MeanShift()
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()
+    mean_shift.fit(features)
+    
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = mean_shift.predict(features)
+    df['model_type'] = 'mean_shift'
+    df['model_name'] = 'mean_shift'
+    majority_voting_label(df)
+    return(df)
+
+def spectral_clustering_prediction(df,k):
+    spectral_clustering = SpectralClustering(n_clusters=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()    
+    
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = spectral_clustering.fit_predict(features)
+    df['model_type'] = 'spectral_clustering'
+    df['model_name'] = 'spectral_clustering'+str(k)
+    majority_voting_label(df)
+    return(df)
+
+def gaussian_mixture_prediction(df,k):
+    gaussian_mixture =GaussianMixture(n_components=k)
+    features=df[['hair','feathers','eggs','milk','airborne','aquatic','predator','toothed','backbone','breathes','venomous','fins','legs','tail','domestic','catsize']].copy()    
+    gaussian_mixture.fit(features)
+    # Assegna le etichette dei cluster a ogni oggetto del dataset
+    df['predict'] = gaussian_mixture.predict(features)
+    df['model_type'] = 'gaussian_mixture'
+    df['model_name'] = 'gaussian_mixture'+str(k)
+    majority_voting_label(df)
+    return(df)
+
+def get_best_models(model_comparison):
+    df=model_comparison.copy()
+    df['resume_index']=df[['ri','NMI','V','siluetteN']].mean(axis=1)
+    df.groupby('model_type')['resume_index'].max()
+    idx_best = df.groupby('model_type')['resume_index'].transform(max) == df['resume_index']
+    best_models=df[idx_best]
+    return(best_models)

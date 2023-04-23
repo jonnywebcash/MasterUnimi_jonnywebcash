@@ -232,15 +232,18 @@ sf.feature_vsclustered_class(zoo_data,gaussian_mixture,species_dict)
 # Scatter plot all
 sf.scatter_plot_all([affinityM,agglomerativeC,birchM9, birchM,dbscan,optics_m,kmeans,mb_kmeans,mean_shift,spectral_clustering,gaussian_mixture],['animal name','model_type','model_name','type','predict_label','predict'])
 
-# # Where is platypus?
-# platypus_result=pd.concat([result_affinityM, result_agglomerativeC,result_birchM9, result_birchM,result_dbscan,result_optics_m,result_kmeans,result_mb_kmeans,result_mean_shift,result_spectral_clustering,result_gaussian_mixture], axis=0)
-# platypus_result=platypus_result[platypus_result["animal name"]=='platypus']
-# predict_platypus=pd.DataFrame(platypus_result['predict_label'].value_counts())
+import matplotlib.pyplot as plt
 
-# plt.figure()
-# plt.title('Where is platypus?')
-# plt.bar(predict_platypus.index, predict_platypus['predict_label'], align='center')     
-# plt.ylabel("Count")   
-# plt.show()
+# Where is platypus?
+import matplotlib.pyplot as plt
+platypus_result=pd.concat([result_affinityM, result_agglomerativeC,result_birchM9, result_birchM,result_dbscan,result_optics_m,result_kmeans,result_mb_kmeans,result_mean_shift,result_spectral_clustering,result_gaussian_mixture], axis=0)
+platypus_result=platypus_result[platypus_result["animal name"]=='platypus']
+predict_platypus=pd.DataFrame(platypus_result['predict_label'].value_counts())
+
+plt.figure()
+plt.title('Where is platypus?')
+plt.bar(predict_platypus.index, predict_platypus['predict_label'], align='center')     
+plt.ylabel("Count")   
+plt.show()
  
 
